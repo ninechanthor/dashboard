@@ -3,325 +3,257 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard</title>
+<title>IB Truck Queue Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #f4f5f3; --surface: #ffffff; --ink: #1d2421; --muted: #66706b;
-    --line: #dde1de; --accent: #0f766e; --accent-soft: #d5ece9; --danger: #b42318;
+    --bg:#f4f5f3; --surface:#ffffff; --ink:#1d2421; --muted:#66706b; --line:#dde1de;
+    --accent:#0f766e; --accent-soft:#d5ece9; --danger:#b42318;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #121715; --surface: #1a211f; --ink: #e7ecea; --muted: #94a09b;
-      --line: #2b3532; --accent: #4fd1c5; --accent-soft: #1d3a37; --danger: #ff8a7a;
-    }
+    :root { --bg:#121715; --surface:#1a211f; --ink:#e7ecea; --muted:#94a09b; --line:#2b3532;
+            --accent:#4fd1c5; --accent-soft:#1d3a37; --danger:#ff8a7a; }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
-  body {
-    font-family: "IBM Plex Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--bg); color: var(--ink); line-height: 1.5;
-    padding: 20px clamp(12px, 3vw, 32px) 40px;
-  }
-  header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  h1 { font-size: 22px; font-weight: 600; margin: 0; }
-  #status { color: var(--muted); font-size: 13px; }
-  #status.error { color: var(--danger); }
-  button, select, input {
-    font: inherit; color: var(--ink); background: var(--surface);
-    border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
-  }
-  button { cursor: pointer; }
-  button:hover { border-color: var(--accent); }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  body { font-family:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+         background:var(--bg); color:var(--ink); line-height:1.5;
+         padding:20px clamp(12px,3vw,32px) 40px; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+  h1 { font-size:22px; font-weight:600; margin:0; }
+  h2 { font-size:16px; font-weight:600; margin:0 0 4px; }
+  #status { color:var(--muted); font-size:13px; }
+  #status.error { color:var(--danger); }
+  .tools { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  select, button { font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--line);
+                   border-radius:6px; padding:7px 10px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
-  .kpi.main { border-left: 4px solid var(--accent); }
-  .kpi .label { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-  .kpi .num { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .kpi .sub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:18px; }
+  .kpi { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  .kpi .label { color:var(--muted); font-size:13px; }
+  .kpi .num { font-size:26px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .kpi .sub { color:var(--muted); font-size:12px; }
+  .kpi.main { border-left:4px solid var(--accent); }
 
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; font-size: 14px; }
-  .controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
-  .chart-wrap { position: relative; height: 340px; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:18px; }
+  .panel p { margin:0 0 10px; color:var(--muted); font-size:13px; }
+  .chart-wrap { position:relative; height:360px; }
+  .chart-wrap.short { height:280px; }
 
-  .table-tools { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-  .table-tools input { width: min(320px, 100%); }
-  .scroll { overflow-x: auto; max-height: 480px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; }
-  table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  th, td { padding: 8px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  th { position: sticky; top: 0; background: var(--accent-soft); cursor: pointer; user-select: none; font-weight: 600; }
-  tbody tr:hover { background: var(--accent-soft); }
-  .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
-  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { padding:8px 12px; text-align:left; white-space:nowrap; border-bottom:1px solid var(--line); }
+  th { background:var(--accent-soft); font-weight:600; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover, tbody tr.sel { background:var(--accent-soft); }
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>Dashboard</h1>
+    <h1 id="title">IB Truck Queue</h1>
     <div id="status">กำลังโหลดข้อมูล…</div>
   </div>
-  <button id="refreshBtn" type="button">โหลดข้อมูลใหม่</button>
+  <div class="tools">
+    <label for="siteSel">กลุ่ม</label>
+    <select id="siteSel"></select>
+    <button id="refreshBtn" type="button">โหลดข้อมูลใหม่</button>
+  </div>
 </header>
 
 <section class="kpis" id="kpis"></section>
 
 <section class="panel">
-  <div class="controls">
-    <label>จัดกลุ่มตาม <select id="groupSel"></select></label>
-    <label>ค่าที่ต้องการดู <select id="measureSel"></select></label>
-    <label>วิธีรวมค่า
-      <select id="aggSel">
-        <option value="sum">ผลรวม</option>
-        <option value="avg">ค่าเฉลี่ย</option>
-        <option value="count">จำนวนแถว</option>
-      </select>
-    </label>
-  </div>
-  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <h2>ลงทะเบียนและรับงานรายชั่วโมง</h2>
+  <p>แท่งด้านบน = registered, แท่งด้านล่าง = completed, เส้น = remain</p>
+  <div class="chart-wrap"><canvas id="chartHourly"></canvas></div>
 </section>
 
 <section class="panel">
-  <div class="table-tools">
-    <input id="search" type="search" placeholder="ค้นหาในตาราง…" aria-label="ค้นหาในตาราง">
-    <span class="note" id="rowInfo"></span>
-  </div>
-  <div class="scroll"><table id="table"></table></div>
-  <div class="note">คลิกหัวคอลัมน์เพื่อเรียงลำดับ</div>
+  <h2>ยอดสะสม</h2>
+  <p>เทียบ registered กับ completed สะสมตามชั่วโมง (completed แสดงเป็นค่าบวกเพื่อเทียบกัน)</p>
+  <div class="chart-wrap short"><canvas id="chartAcc"></canvas></div>
+</section>
+
+<section class="panel">
+  <h2>ภาพรวมทุกกลุ่ม</h2>
+  <p>คลิกแถวเพื่อดูกราฟของกลุ่มนั้น</p>
+  <div class="scroll"><table id="overview"></table></div>
 </section>
 
 <script>
-const CSV_URL = "https://sheet-proxy.nine-chanthor.workers.dev";
+// URL ของ Cloudflare Worker (ตรวจชื่อให้ตรงกับของคุณ)
+const API_URL = "https://sheet-proxy.nine-chanthor.workers.dev";
 const REFRESH_MS = 2 * 60 * 1000;
-const MAX_TABLE_ROWS = 500;
 
-let rows = [], columns = [], types = {};
-let chart = null;
-let sortCol = null, sortDir = 1;
+let blocks = [], selected = "";
+let chartH = null, chartA = null;
 
 const $ = id => document.getElementById(id);
 const fmt = n => Number.isFinite(n) ? n.toLocaleString("th-TH", { maximumFractionDigits: 2 }) : "-";
+const num = v => {
+  const s = String(v ?? "").replace(/[,\s]/g, "");
+  if (s === "") return 0;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+};
 
-/* ---------- parsing helpers ---------- */
-function toNumber(v) {
-  if (typeof v === "number") return v;
-  if (v === null || v === undefined) return NaN;
-  const s = String(v).trim().replace(/[,฿$%\s]/g, "");
-  if (s === "" || !/^-?\d*\.?\d+(e[+-]?\d+)?$/i.test(s)) return NaN;
-  return Number(s);
+// หาคอลัมน์จากชื่อหัวตาราง (ไม่สนตัวพิมพ์เล็กใหญ่)
+function colIndex(b, name) {
+  const i = b.columns.findIndex(c => c.toLowerCase() === name.toLowerCase());
+  return i < 0 ? -1 : i + 2; // +2 เพราะแถวข้อมูลขึ้นต้นด้วย [time, hour]
 }
-
-function toDate(v) {
-  if (v instanceof Date) return v;
-  const s = String(v ?? "").trim();
-  if (!s || !/[\/\-.]/.test(s) || !/\d/.test(s)) return null;
-  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  let y, mo, d;
-  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
-  else {
-    m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
-    if (!m) return null;
-    d = +m[1]; mo = +m[2]; y = +m[3];
-  }
-  if (y > 2400) y -= 543; // ปี พ.ศ.
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  return new Date(y, mo - 1, d);
+function series(b, name, abs) {
+  const i = colIndex(b, name);
+  if (i < 0) return null;
+  return b.rows.map(r => abs ? Math.abs(num(r[i])) : num(r[i]));
 }
-
-function detectTypes() {
-  types = {};
-  columns.forEach(c => {
-    const vals = rows.map(r => r[c]).filter(v => v !== null && v !== undefined && String(v).trim() !== "");
-    if (!vals.length) { types[c] = "text"; return; }
-    const numRatio = vals.filter(v => Number.isFinite(toNumber(v))).length / vals.length;
-    if (numRatio >= 0.8) { types[c] = "number"; return; }
-    const dateRatio = vals.filter(v => toDate(v)).length / vals.length;
-    if (dateRatio >= 0.8) { types[c] = "date"; return; }
-    const uniq = new Set(vals.map(String)).size;
-    types[c] = uniq <= Math.max(20, vals.length * 0.5) ? "category" : "text";
-  });
+const sum = a => a ? a.reduce((x, y) => x + y, 0) : 0;
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function showUpdated(b) {
+  const d = new Date(b.updated);
+  return (!b.updated || isNaN(d) || d.getFullYear() < 2000) ? "-" : d.toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
 }
 
 /* ---------- load ---------- */
 async function load() {
   const st = $("status");
   try {
-    const res = await fetch(CSV_URL + (CSV_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const text = await res.text();
-    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-    columns = (parsed.meta.fields || []).filter(f => f && f.trim() !== "");
-    rows = parsed.data;
-    if (!columns.length || !rows.length) throw new Error("ไม่พบข้อมูลในชีต");
-    detectTypes();
-    setupControls();
-    renderAll();
+    const res = await fetch(API_URL + "?t=" + Date.now());
+    if (!res.ok) throw new Error((await res.text()) || "HTTP " + res.status);
+    const data = await res.json();
+    blocks = data.blocks || [];
+    if (!blocks.length) throw new Error("ไม่พบบล็อกข้อมูล (ตรวจ SHEET_RANGE ของ Worker)");
+    const sel = $("siteSel");
+    sel.innerHTML = "";
+    blocks.forEach(b => sel.add(new Option(b.name, b.name)));
+    if (!blocks.some(b => b.name === selected)) selected = blocks[0].name;
+    sel.value = selected;
     st.className = "";
-    st.textContent = `${rows.length.toLocaleString()} แถว · อัปเดตล่าสุด ${new Date().toLocaleTimeString("th-TH")}`;
+    st.textContent = `${blocks.length} กลุ่ม · โหลดล่าสุด ${new Date().toLocaleTimeString("th-TH")}`;
+    renderAll();
   } catch (e) {
     st.className = "error";
-    st.textContent = "โหลดข้อมูลไม่สำเร็จ: " + e.message + " (ตรวจว่า URL เป็น output=csv และเปิด Publish to web อยู่)";
+    st.textContent = "โหลดข้อมูลไม่สำเร็จ: " + e.message;
   }
-}
-
-/* ---------- controls ---------- */
-function setupControls() {
-  const gSel = $("groupSel"), mSel = $("measureSel");
-  const prevG = gSel.value, prevM = mSel.value;
-  const groupCols = columns.filter(c => types[c] === "date" || types[c] === "category");
-  const numCols = columns.filter(c => types[c] === "number");
-
-  gSel.innerHTML = "";
-  (groupCols.length ? groupCols : columns).forEach(c => gSel.add(new Option(c, c)));
-  mSel.innerHTML = "";
-  numCols.forEach(c => mSel.add(new Option(c, c)));
-  if (!numCols.length) { mSel.add(new Option("(ไม่มีคอลัมน์ตัวเลข)", "")); $("aggSel").value = "count"; }
-
-  // คงค่าที่ผู้ใช้เลือกไว้ตอน refresh
-  if ([...gSel.options].some(o => o.value === prevG)) gSel.value = prevG;
-  else {
-    const firstDate = groupCols.find(c => types[c] === "date");
-    gSel.value = firstDate || groupCols[0] || columns[0];
-  }
-  if ([...mSel.options].some(o => o.value === prevM)) mSel.value = prevM;
 }
 
 /* ---------- render ---------- */
-function renderAll() { renderKpis(); renderChart(); renderTable(); }
+function current() { return blocks.find(b => b.name === selected) || blocks[0]; }
+
+function renderAll() { renderKpis(); renderHourly(); renderAcc(); renderOverview(); }
 
 function renderKpis() {
+  const b = current();
+  $("title").textContent = b.name + " · IB Truck Queue";
+  const reg4 = series(b, "registered 4W"), reg6 = series(b, "registered 6W");
+  const c4 = series(b, "completed 4W", true), c6 = series(b, "completed 6W", true);
+  const remain = series(b, "remain");
+  const items = [
+    ["Registered รวม", fmt(sum(reg4) + sum(reg6)), `4W ${fmt(sum(reg4))} · 6W ${fmt(sum(reg6))}`, true],
+    ["Completed รวม", fmt(sum(c4) + sum(c6)), `4W ${fmt(sum(c4))} · 6W ${fmt(sum(c6))}`],
+  ];
+  if (remain && remain.length) {
+    const last = remain[remain.length - 1];
+    const peak = Math.max(...remain);
+    items.push(["Remain ล่าสุด", fmt(last), "สูงสุด " + fmt(peak)]);
+  }
+  items.push(["ข้อมูล ณ", showUpdated(b), b.date || ""]);
   const box = $("kpis");
   box.innerHTML = "";
-  const add = (label, num, sub, main) => {
+  items.forEach(([l, n, s, main]) => {
     const d = document.createElement("div");
     d.className = "kpi" + (main ? " main" : "");
     d.innerHTML = '<div class="label"></div><div class="num"></div><div class="sub"></div>';
-    d.children[0].textContent = label; d.children[1].textContent = num; d.children[2].textContent = sub || "";
+    d.children[0].textContent = l; d.children[1].textContent = n; d.children[2].textContent = s;
+    d.children[1].style.fontSize = n.length > 12 ? "16px" : "";
     box.appendChild(d);
-  };
-  add("จำนวนแถวทั้งหมด", rows.length.toLocaleString("th-TH"), columns.length + " คอลัมน์", true);
-  columns.filter(c => types[c] === "number").slice(0, 5).forEach(c => {
-    const v = rows.map(r => toNumber(r[c])).filter(Number.isFinite);
-    const sum = v.reduce((a, b) => a + b, 0);
-    add(c, fmt(sum), "เฉลี่ย " + fmt(sum / v.length) + " · สูงสุด " + fmt(Math.max(...v)));
   });
 }
 
-function aggregate() {
-  const g = $("groupSel").value, m = $("measureSel").value, agg = $("aggSel").value;
-  const isDate = types[g] === "date";
-  const buckets = new Map();
-  rows.forEach(r => {
-    let key = String(r[g] ?? "").trim();
-    if (!key) key = "(ว่าง)";
-    let sortKey = key;
-    if (isDate) {
-      const d = toDate(r[g]);
-      if (!d) return;
-      key = d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
-      sortKey = d.getTime();
-    }
-    const b = buckets.get(key) || { sortKey, sum: 0, n: 0, nv: 0 };
-    b.n++;
-    const val = toNumber(r[m]);
-    if (Number.isFinite(val)) { b.sum += val; b.nv++; }
-    buckets.set(key, b);
-  });
-  let list = [...buckets.entries()].map(([k, b]) => ({
-    label: k, sortKey: b.sortKey,
-    value: agg === "count" ? b.n : agg === "avg" ? (b.nv ? b.sum / b.nv : 0) : b.sum
-  }));
-  if (isDate) list.sort((a, b) => a.sortKey - b.sortKey);
-  else list.sort((a, b) => b.value - a.value).splice(25);
-  return list;
-}
-
-function renderChart() {
-  const list = aggregate();
-  const g = $("groupSel").value, m = $("measureSel").value, agg = $("aggSel").value;
-  const css = getComputedStyle(document.documentElement);
-  const accent = css.getPropertyValue("--accent").trim();
-  const muted = css.getPropertyValue("--muted").trim();
-  const line = css.getPropertyValue("--line").trim();
-  const aggName = { sum: "ผลรวม", avg: "ค่าเฉลี่ย", count: "จำนวนแถว" }[agg];
-  const label = agg === "count" ? "จำนวนแถว" : `${aggName} ${m}`;
-  const isLine = types[g] === "date";
-
-  const cfg = {
-    type: isLine ? "line" : "bar",
-    data: {
-      labels: list.map(x => x.label),
-      datasets: [{
-        label, data: list.map(x => x.value),
-        borderColor: accent, backgroundColor: isLine ? accent + "33" : accent,
-        fill: isLine, tension: 0.25, pointRadius: list.length > 60 ? 0 : 3, borderRadius: 3
-      }]
+function baseOptions(b, extraScales) {
+  const muted = cssVar("--muted"), line = cssVar("--line");
+  return {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { position: "bottom", labels: { color: muted, boxWidth: 12 } },
+      tooltip: { callbacks: { title: items => b.rows[items[0].dataIndex]?.[0] || "" } }
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, title: { display: true, text: label + " ตาม " + g, color: muted } },
-      scales: {
-        x: { ticks: { color: muted, maxRotation: 45 }, grid: { color: line } },
-        y: { ticks: { color: muted }, grid: { color: line }, beginAtZero: true }
-      }
-    }
+    scales: Object.assign({
+      x: { stacked: true, title: { display: true, text: "IB hours", color: muted }, ticks: { color: muted }, grid: { display: false } },
+      y: { stacked: true, ticks: { color: muted }, grid: { color: line } }
+    }, extraScales || {})
   };
-  if (chart) chart.destroy();
-  chart = new Chart($("chart"), cfg);
 }
 
-function renderTable() {
-  const q = $("search").value.trim().toLowerCase();
-  let view = rows;
-  if (q) view = rows.filter(r => columns.some(c => String(r[c] ?? "").toLowerCase().includes(q)));
-  if (sortCol) {
-    const t = types[sortCol];
-    view = [...view].sort((a, b) => {
-      let x = a[sortCol], y = b[sortCol];
-      if (t === "number") { x = toNumber(x); y = toNumber(y); }
-      else if (t === "date") { x = toDate(x)?.getTime() ?? 0; y = toDate(y)?.getTime() ?? 0; }
-      else { x = String(x ?? ""); y = String(y ?? ""); return x.localeCompare(y, "th") * sortDir; }
-      return ((x || 0) - (y || 0)) * sortDir;
-    });
-  }
-  const shown = view.slice(0, MAX_TABLE_ROWS);
-  const tbl = $("table");
-  tbl.innerHTML = "";
-  const thead = tbl.createTHead().insertRow();
-  columns.forEach(c => {
-    const th = document.createElement("th");
-    th.textContent = c + (sortCol === c ? (sortDir === 1 ? " ▲" : " ▼") : "");
-    th.onclick = () => { sortDir = sortCol === c ? -sortDir : 1; sortCol = c; renderTable(); };
-    thead.appendChild(th);
+function renderHourly() {
+  const b = current();
+  const labels = b.rows.map(r => r[1]);
+  const mk = (name, color, abs, neg) => {
+    const d = series(b, name, false);
+    return d ? { type: "bar", label: name, data: d, backgroundColor: color, stack: "bars", order: 2 } : null;
+  };
+  const ds = [
+    mk("registered 4W", "#3b82f6"),
+    mk("registered 6W", "#ef4444"),
+    mk("completed 4W", "#8b5cf6"),
+    mk("completed 6W", "#14b8a6"),
+  ].filter(Boolean);
+  const remain = series(b, "remain");
+  if (remain) ds.push({
+    type: "line", label: "remain", data: remain, borderColor: "#eab308", backgroundColor: "#eab308",
+    stack: "remainLine", tension: 0.3, pointRadius: 2, borderWidth: 2, order: 1
   });
-  const tbody = tbl.createTBody();
-  shown.forEach(r => {
-    const tr = tbody.insertRow();
-    columns.forEach(c => {
-      const td = tr.insertCell();
-      td.textContent = r[c] ?? "";
-      if (types[c] === "number") td.className = "num";
-    });
-  });
-  $("rowInfo").textContent = view.length > MAX_TABLE_ROWS
-    ? `แสดง ${MAX_TABLE_ROWS.toLocaleString()} จาก ${view.length.toLocaleString()} แถว`
-    : `${view.length.toLocaleString()} แถว`;
+  if (chartH) chartH.destroy();
+  chartH = new Chart($("chartHourly"), { type: "bar", data: { labels, datasets: ds }, options: baseOptions(b) });
 }
 
-/* ---------- events ---------- */
-["groupSel", "measureSel", "aggSel"].forEach(id => $(id).addEventListener("change", renderChart));
-$("search").addEventListener("input", renderTable);
+function renderAcc() {
+  const b = current();
+  const labels = b.rows.map(r => r[1]);
+  const ds = [];
+  const reg = series(b, "register accumulated");
+  const comp = series(b, "completed accumulated", true);
+  if (reg) ds.push({ label: "registered สะสม", data: reg, borderColor: "#3b82f6", backgroundColor: "#3b82f6", tension: 0.25, pointRadius: 2 });
+  if (comp) ds.push({ label: "completed สะสม", data: comp, borderColor: "#14b8a6", backgroundColor: "#14b8a6", tension: 0.25, pointRadius: 2 });
+  const opts = baseOptions(b, {
+    x: { title: { display: true, text: "IB hours", color: cssVar("--muted") }, ticks: { color: cssVar("--muted") }, grid: { display: false } },
+    y: { beginAtZero: true, ticks: { color: cssVar("--muted") }, grid: { color: cssVar("--line") } }
+  });
+  if (chartA) chartA.destroy();
+  chartA = new Chart($("chartAcc"), { type: "line", data: { labels, datasets: ds }, options: opts });
+}
+
+function renderOverview() {
+  const t = $("overview");
+  t.innerHTML = "";
+  const head = t.createTHead().insertRow();
+  ["กลุ่ม", "Registered", "Completed", "Remain ล่าสุด", "ข้อมูล ณ"].forEach((h, i) => {
+    const th = document.createElement("th"); th.textContent = h; if (i >= 1 && i <= 3) th.className = "num"; head.appendChild(th);
+  });
+  const body = t.createTBody();
+  blocks.forEach(b => {
+    const reg = sum(series(b, "registered 4W")) + sum(series(b, "registered 6W"));
+    const comp = sum(series(b, "completed 4W", true)) + sum(series(b, "completed 6W", true));
+    const rem = series(b, "remain");
+    const tr = body.insertRow();
+    if (b.name === selected) tr.className = "sel";
+    const cells = [b.name, fmt(reg), fmt(comp), rem && rem.length ? fmt(rem[rem.length - 1]) : "-", showUpdated(b)];
+    cells.forEach((v, i) => { const td = tr.insertCell(); td.textContent = v; if (i >= 1 && i <= 3) td.className = "num"; });
+    tr.onclick = () => { selected = b.name; $("siteSel").value = b.name; renderAll(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  });
+}
+
+$("siteSel").addEventListener("change", e => { selected = e.target.value; renderAll(); });
 $("refreshBtn").addEventListener("click", load);
-
 load();
 setInterval(load, REFRESH_MS);
 </script>
